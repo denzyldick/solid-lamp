@@ -12,17 +12,17 @@ import (
 )
 
 var addr = flag.String("addr", ":4444", "http service address")
+
 // We'll need to define an Upgrader
 // this will require a Read and Write buffer size
-var upgrader = websocket.Upgrader{
+var upgrader = websocket.Upgrader{}
 
-}
 func main() {
 	flag.Parse()
 
 	http.HandleFunc("/ws", func(w http.ResponseWriter, r *http.Request) {
 
-		serve( w, r)
+		serve(w, r)
 	})
 	err := http.ListenAndServe(*addr, nil)
 	if err != nil {
@@ -31,8 +31,9 @@ func main() {
 }
 
 var clients []Client
+
 // serve handles websocket requests from the peer.
-func serve( w http.ResponseWriter, r *http.Request) {
+func serve(w http.ResponseWriter, r *http.Request) {
 	/// Allow cross origin for now.
 	upgrader.CheckOrigin = func(r *http.Request) bool { return true }
 	conn, err := upgrader.Upgrade(w, r, w.Header())
@@ -43,8 +44,6 @@ func serve( w http.ResponseWriter, r *http.Request) {
 
 	reader(conn)
 }
-
-
 
 // define a reader which will listen for
 // new messages being sent to our WebSocket
@@ -60,71 +59,74 @@ func reader(conn *websocket.Conn) {
 
 		fmt.Println("new message received")
 		// print out that message for clarity
-		payload  := Payload{}
-		err = json.Unmarshal(p,&payload)
+		payload := Payload{}
+		err = json.Unmarshal(p, &payload)
 		fmt.Println(payload.Type)
-		if err!= nil{
+		if err != nil {
 			log.Print(err)
 		}
 
-
-		if payload.Type == "SDP"{
+		if payload.Type == "SDP" {
 			client := Client{
-				SDP:payload.SDP,
+				SDP:        payload.SDP,
 				DispayName: strconv.Itoa(rand.Int()),
-				Conn: *conn,
+				Conn:       *conn,
 			}
 			clients = append(clients, client)
+			for c := range clients {
 
+				if err != nil {
+					log.Print(err)
+				}
+				err = conn.WriteJSON(clients[c])
+
+				if err != nil {
+					log.Print(err)
+				} else {
+					fmt.Println("Mesage send")
+				}
+
+			}
 		}
 
 		if payload.Type == "NEW_CANDIDATE" {
 
 			for c := range clients {
 
-					//bytes, err := json.Marshal(clients[c])
+				if err != nil {
+					log.Print(err)
+				}
+				err = conn.WriteJSON(clients[c])
 
-					if err != nil {
-						log.Print(err)
-					}
-					err = conn.WriteJSON(clients[c])
-
-					if err != nil {
-						log.Print(err)
-					} else {
-						fmt.Print("Mesage send")
-					}
+				if err != nil {
+					log.Print(err)
+				} else {
+					fmt.Println("Mesage send")
+				}
 
 			}
 		}
-		}
-		//if err := conn.WriteMessage(messageType, p); err != nil {
-		//	log.Println(err)
-		//	return
-		//}
-
-
+	}
 }
 
 //func findClients(start *Client)[]*Client{
 //	return &Client{}
 //}
-type Payload struct{
-	Type string `json:"type"`
+type Payload struct {
+	Type  string `json:"type"`
 	Value string `json:"value"`
-	SDP SDP `json:"sdp"`
+	SDP   SDP    `json:"sdp"`
 }
 
-type SDP struct{
+type SDP struct {
 	Type string `json:"type"`
-	Sdp string	`json:"sdp"`
+	Sdp  string `json:"sdp"`
 }
 type Client struct {
-	SDP SDP
+	SDP        SDP
 	DispayName string
-	Conn websocket.Conn
+	Conn       websocket.Conn
 }
-
 
 type Group struct {
 	Members []Client
