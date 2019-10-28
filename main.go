@@ -6,9 +6,7 @@ import (
 	"fmt"
 	"github.com/gorilla/websocket"
 	"log"
-	"math/rand"
 	"net/http"
-	"strconv"
 )
 
 var addr = flag.String("addr", ":4444", "http service address")
@@ -57,7 +55,6 @@ func reader(conn *websocket.Conn) {
 			return
 		}
 
-		fmt.Println("new message received")
 		// print out that message for clarity
 		payload := Payload{}
 		err = json.Unmarshal(p, &payload)
@@ -65,54 +62,44 @@ func reader(conn *websocket.Conn) {
 		if err != nil {
 			log.Print(err)
 		}
-
+		client := Client{
+			SDP:        payload.SDP,
+			DispayName: payload.Id,
+			Conn:       *conn,
+		}
 		if payload.Type == "SDP" {
-			client := Client{
-				SDP:        payload.SDP,
-				DispayName: strconv.Itoa(rand.Int()),
-				Conn:       *conn,
-			}
+
+		}
+
+		if findClients(&client) == false {
 			clients = append(clients, client)
-			for c := range clients {
+		}
+		for c := range clients {
+			err = conn.WriteJSON(clients[c])
 
-				if err != nil {
-					log.Print(err)
-				}
-				err = conn.WriteJSON(clients[c])
-
-				if err != nil {
-					log.Print(err)
-				} else {
-					fmt.Println("Mesage send")
-				}
-
+			if err != nil {
+				log.Print(err)
+			} else {
+				fmt.Println(payload)
 			}
+
 		}
 
-		if payload.Type == "NEW_CANDIDATE" {
-
-			for c := range clients {
-
-				if err != nil {
-					log.Print(err)
-				}
-				err = conn.WriteJSON(clients[c])
-
-				if err != nil {
-					log.Print(err)
-				} else {
-					fmt.Println("Mesage send")
-				}
-
-			}
-		}
+		fmt.Println(len(clients), "clients")
 	}
 }
 
-//func findClients(start *Client)[]*Client{
-//	return &Client{}
-//}
+func findClients(start *Client) bool {
+
+	for i, _ := range clients {
+		return clients[i].DispayName == start.DispayName
+	}
+	return false
+
+}
+
 type Payload struct {
+	Id string `json:"id"`
 	Type  string `json:"type"`
 	Value string `json:"value"`
 	SDP   SDP    `json:"sdp"`
